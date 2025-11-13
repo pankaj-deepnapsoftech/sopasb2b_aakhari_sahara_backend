@@ -19,6 +19,16 @@ exports.createOrder = TryCatch(async (req, res) => {
   const razorpay = getRazorpayClient();
   const userId = req.user?._id || null;
   const plan = req.body.plan || 'RTPAS';
+  const period = req.body.period || 'month';
+
+  // Calculate end date based on period
+  const startDate = new Date();
+  const endDate = new Date(startDate);
+  if (period === 'year') {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(endDate.getMonth() + 1);
+  }
 
   // Prefer amount provided by client (in paise) for dynamic pricing
   let amountInPaise = null;
@@ -67,6 +77,9 @@ exports.createOrder = TryCatch(async (req, res) => {
     currency: 'INR',
     razorpayOrderId: order.id,
     status: 'created',
+    startDate,
+    endDate,
+    period,
   });
 
   return res.status(StatusCodes.CREATED).json({
@@ -111,6 +124,9 @@ exports.verifyPayment = TryCatch(async (req, res) => {
     razorpayPaymentId: razorpay_payment_id,
     razorpaySignature: razorpay_signature,
     status: 'paid',
+    startDate: order?.startDate || new Date(),
+    endDate: order?.endDate,
+    period: order?.period || 'month',
   });
 
   if (order?.userId) {
@@ -118,4 +134,79 @@ exports.verifyPayment = TryCatch(async (req, res) => {
   }
 
   return res.status(StatusCodes.OK).json({ success: true, message: 'Payment verified' });
+});
+
+exports.renewSubscription = TryCatch(async (req, res) => {
+  const razorpay = getRazorpayClient();
+  const userId = req.user?._id || null;
+  const { plan, amount, period } = req.body;
+
+  if (!userId) {
+    throw new ErrorHandler('User not authenticated', 401);
+  }
+
+  if (!plan) {
+    throw new ErrorHandler('Plan is required', 400);
+  }
+
+  // Find the last subscription payment for this user
+  const lastPayment = await SubscriptionPayment.findOne({ userId }).sort({ createdAt: -1 });
+  if (!lastPayment) {
+    throw new ErrorHandler('No previous subscription found', 404);
+  }
+
+  // Verify subscription has expired
+  if (new Date() < lastPayment.endDate) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      success: false,
+      message: 'Subscription is still active. Renewal not yet eligible.',
+      endDate: lastPayment.endDate,
+    });
+  }
+
+  const renewalPeriod = period || lastPayment.period || 'month';
+  let amountInPaise = amount || (lastPayment.amount);
+
+  // Calculate new end date based on period
+  const renewalStartDate = new Date();
+  const renewalEndDate = new Date(renewalStartDate);
+  if (renewalPeriod === 'year') {
+    renewalEndDate.setFullYear(renewalEndDate.getFullYear() + 1);
+  } else {
+    renewalEndDate.setMonth(renewalEndDate.getMonth() + 1);
+  }
+
+  // Create new Razorpay order for renewal
+  const order = await razorpay.orders.create({
+    amount: amountInPaise,
+    currency: 'INR',
+    receipt: `renew_${Date.now()}`,
+    notes: { plan, renewal: true },
+  });
+
+  // Create new SubscriptionOrder for renewal
+  await SubscriptionOrder.create({
+    userId,
+    plan,
+    amount: amountInPaise,
+    currency: 'INR',
+    razorpayOrderId: order.id,
+    status: 'created',
+    startDate: renewalStartDate,
+    endDate: renewalEndDate,
+    period: renewalPeriod,
+  });
+
+  return res.status(StatusCodes.CREATED).json({
+    success: true,
+    message: 'Renewal order created. Proceed to payment.',
+    data: {
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      plan,
+      previousEndDate: lastPayment.endDate,
+      newEndDate: renewalEndDate,
+    },
+  });
 });

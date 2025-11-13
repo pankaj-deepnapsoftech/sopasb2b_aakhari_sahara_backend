@@ -8,6 +8,9 @@ const SubscriptionOrderSchema = new Schema({
   currency: { type: String, default: 'INR' },
   razorpayOrderId: { type: String, required: true, unique: true },
   status: { type: String, enum: ['created', 'paid', 'failed'], default: 'created' },
+  startDate: { type: Date, default: Date.now },
+  endDate: { type: Date },
+  period: { type: String, enum: ['month', 'year'], default: 'month' },
 }, { timestamps: true });
 
 const SubscriptionOrder = mongoose.model('SubscriptionOrder', SubscriptionOrderSchema);

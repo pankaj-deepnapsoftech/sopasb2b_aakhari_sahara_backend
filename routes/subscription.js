@@ -6,5 +6,7 @@ const { isAuthenticated } = require('../middlewares/isAuthenticated');
 router.post('/create', isAuthenticated, subscriptionCtrl.createOrder);
 // Verify payment (frontend posts payment ids)
 router.post('/verify', subscriptionCtrl.verifyPayment);
+// Renew subscription (requires auth; checks expiry first)
+router.post('/renew', isAuthenticated, subscriptionCtrl.renewSubscription);
 
 module.exports = router;

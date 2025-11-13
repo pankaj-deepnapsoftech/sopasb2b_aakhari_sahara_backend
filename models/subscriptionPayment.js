@@ -10,6 +10,9 @@ const SubscriptionPaymentSchema = new Schema({
   razorpayPaymentId: { type: String, required: true, unique: true },
   razorpaySignature: { type: String, required: true },
   status: { type: String, enum: ['paid'], default: 'paid' },
+  startDate: { type: Date, default: Date.now },
+  endDate: { type: Date },
+  period: { type: String, enum: ['month', 'year'], default: 'month' },
 }, { timestamps: true });
 
 const SubscriptionPayment = mongoose.model('SubscriptionPayment', SubscriptionPaymentSchema);
