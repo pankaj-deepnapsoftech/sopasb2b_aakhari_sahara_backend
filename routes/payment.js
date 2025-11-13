@@ -5,8 +5,6 @@ const router = express.Router();
 
 router.post('/', isAuthenticated, create);
 router.get('/all', isAuthenticated, all);
-router.route('/:_id')
-        .get(isAuthenticated, details)
-        .put(isAuthenticated, update)
+router.route('/:_id').get(isAuthenticated, details).put(isAuthenticated, update)
 
 module.exports = router;

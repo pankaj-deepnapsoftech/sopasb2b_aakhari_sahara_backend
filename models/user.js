@@ -74,6 +74,12 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
+    isSubscribed: {
+      type:Boolean,
+      required:true,
+      default:false
+    },
+
   },
   {
     timestamps: true,
