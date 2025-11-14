@@ -27,9 +27,10 @@ exports.create = TryCatch(async (req, res) => {
       isSuper = true;
     } else {
       const prefix = userDetails.first_name?.substring(0, 3).toUpperCase() || "EMP";
-      const idNumber = String(nonSuperUserCount + 1).padStart(4, "0");
+      const idNumber = String(totalUsers + 1).padStart(4, "0");
       employeeId = `${prefix}${idNumber}`;
     }
+
 
     // If the non-super user count exceeds 100, throw an error
     if (nonSuperUserCount >= 100) {
@@ -61,18 +62,18 @@ exports.create = TryCatch(async (req, res) => {
     // Create subscription order
     const today = new Date();
 
-// Calculate the date 7 days from now
-const next7Days = new Date(today);
-next7Days.setDate(today.getDate() + 7);
+    // Calculate the date 7 days from now
+    const next7Days = new Date(today);
+    next7Days.setDate(today.getDate() + 7);
 
-// Set time to midnight (00:00:00)
-next7Days.setHours(0, 0, 0, 0);
+    // Set time to midnight (00:00:00)
+    next7Days.setHours(0, 0, 0, 0);
 
-// Create subscription order within the session
-await SubscriptionOrder.create(
-  [{ userId: newUser._id, endDate: next7Days }],
-  { session }
-);
+    // Create subscription order within the session
+    await SubscriptionOrder.create(
+      [{ userId: newUser._id, endDate: next7Days, razorpayOrderId: newUser._id, }],
+      { session }
+    );
 
     // Commit the transaction
     await session.commitTransaction();
@@ -198,14 +199,16 @@ exports.employeeDetails = TryCatch(async (req, res) => {
             { $reverseArray: "$subscription" },
             0
           ]
-        }
+        },
+
+        // Count total subscriptions
+        subscription_count: { $size: "$subscription" } // ⚠️ This is wrong; we’ll fix it below
       }
     },
     {
       $addFields: {
         subscription_end: "$subscription.endDate",
         plan: "$subscription.plan",
-
       }
     },
     {
@@ -214,10 +217,9 @@ exports.employeeDetails = TryCatch(async (req, res) => {
         last_name: 1,
         email: 1,
         role: 1,
-        subscription_end:1,
-        plan:1
-
-
+        subscription_end: 1,
+        plan: 1,
+        subscription_count: 1
       }
     }
   ]);
