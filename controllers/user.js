@@ -5,6 +5,8 @@ const User = require("../models/user");
 const OTP = require("../models/otp");
 const { generateOTP } = require("../utils/generateOTP");
 const { sendEmail } = require("../utils/sendEmail");
+const { SubscriptionOrder } = require("../models/subscriptionOrder");
+const { default: mongoose } = require("mongoose");
 
 exports.create = TryCatch(async (req, res) => {
   const userDetails = req.body;
@@ -53,6 +55,14 @@ exports.create = TryCatch(async (req, res) => {
       "User has been created successfully. OTP has been successfully sent to your email id",
     user,
   });
+
+   const today = new Date(); // Get today's date
+  const next7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  await SubscriptionOrder.create({
+    userId:user._id,
+    endDate:next7Days
+  })
 });
 exports.verifyUser = TryCatch(async (req, res) => {
   const { email } = req.body;
@@ -126,7 +136,45 @@ exports.employeeDetails = TryCatch(async (req, res) => {
     throw new ErrorHandler("User id not found", 400);
   }
 
-  const user = await User.findById(userId).populate("role");
+ const user = await User.aggregate([
+  {
+    $match: {
+      _id: new mongoose.Types.ObjectId(userId),
+    }
+  },
+  {
+    $lookup: {
+      from: "user-roles",
+      localField: "role",
+      foreignField: "_id",
+      as: "role"
+    }
+  },
+  {
+    $lookup: {
+      from: "subscriptionorders",
+      localField: "_id",
+      foreignField: "userId",
+      as: "subscription"
+    }
+  },
+  {
+    $addFields: {
+      // Get FIRST role object
+      role: { $arrayElemAt: ["$role", 0] },
+
+      // Reverse subscription array and get the first item (latest)
+      subscription: {
+        $arrayElemAt: [
+          { $reverseArray: "$subscription" },
+          0
+        ]
+      }
+    }
+  }
+]);
+
+
   if (!user) {
     throw new ErrorHandler("User doesn't exist", 400);
   }
