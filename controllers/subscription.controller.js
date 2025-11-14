@@ -110,9 +110,7 @@ const getRazorpayClient = () => {
         status: 'paid',
       });
 
-      if (order?.userId) {
-        await User.findByIdAndUpdate(order.userId, { isSubscribed: true });
-      }
+  
 
       return res.status(StatusCodes.OK).json({ success: true, message: 'Payment verified' });
     });

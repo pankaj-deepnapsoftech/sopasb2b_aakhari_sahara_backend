@@ -56,12 +56,12 @@ exports.create = TryCatch(async (req, res) => {
     user,
   });
 
-   const today = new Date(); // Get today's date
+  const today = new Date(); // Get today's date
   const next7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   await SubscriptionOrder.create({
-    userId:user._id,
-    endDate:next7Days
+    userId: user._id,
+    endDate: next7Days
   })
 });
 exports.verifyUser = TryCatch(async (req, res) => {
@@ -136,43 +136,62 @@ exports.employeeDetails = TryCatch(async (req, res) => {
     throw new ErrorHandler("User id not found", 400);
   }
 
- const user = await User.aggregate([
-  {
-    $match: {
-      _id: new mongoose.Types.ObjectId(userId),
-    }
-  },
-  {
-    $lookup: {
-      from: "user-roles",
-      localField: "role",
-      foreignField: "_id",
-      as: "role"
-    }
-  },
-  {
-    $lookup: {
-      from: "subscriptionorders",
-      localField: "_id",
-      foreignField: "userId",
-      as: "subscription"
-    }
-  },
-  {
-    $addFields: {
-      // Get FIRST role object
-      role: { $arrayElemAt: ["$role", 0] },
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjectId(userId),
+      }
+    },
+    {
+      $lookup: {
+        from: "user-roles",
+        localField: "role",
+        foreignField: "_id",
+        as: "role"
+      }
+    },
+    {
+      $lookup: {
+        from: "subscriptionorders",
+        localField: "_id",
+        foreignField: "userId",
+        as: "subscription"
+      }
+    },
+    {
+      $addFields: {
+        // Get FIRST role object
+        role: { $arrayElemAt: ["$role", 0] },
 
-      // Reverse subscription array and get the first item (latest)
-      subscription: {
-        $arrayElemAt: [
-          { $reverseArray: "$subscription" },
-          0
-        ]
+        // Reverse subscription array and get the first item (latest)
+        subscription: {
+          $arrayElemAt: [
+            { $reverseArray: "$subscription" },
+            0
+          ]
+        }
+      }
+    },
+    {
+      $addFields: {
+        subscription_end: "$subscription.endDate",
+        plan: "$subscription.plan",
+
+      }
+    },
+    {
+      $project: {
+        first_name: 1,
+        last_name: 1,
+        email: 1,
+        role: 1,
+        subscription_end:1,
+        plan:1
+
+
       }
     }
-  }
-]);
+  ]);
 
 
   if (!user) {
@@ -403,7 +422,7 @@ exports.all = TryCatch(async (req, res) => {
 
 exports.updateProfile = TryCatch(async (req, res) => {
   const userId = req.user._id;
-  const { address, first_name, last_name, phone,cpny_name,GSTIN,Bank_Name,Account_No,IFSC_Code } = req.body;
+  const { address, first_name, last_name, phone, cpny_name, GSTIN, Bank_Name, Account_No, IFSC_Code } = req.body;
 
   const updatedUser = await User.findByIdAndUpdate(
     userId,
@@ -412,11 +431,11 @@ exports.updateProfile = TryCatch(async (req, res) => {
       ...(phone && { phone }),
       ...(first_name && { first_name }),
       ...(last_name && { last_name }),
-      ...(cpny_name && {cpny_name}),
-      ...(GSTIN && {GSTIN}),
-      ...(Account_No && { Account_No}),
-      ...(Bank_Name && {Bank_Name}),
-      ...(IFSC_Code && {IFSC_Code}),
+      ...(cpny_name && { cpny_name }),
+      ...(GSTIN && { GSTIN }),
+      ...(Account_No && { Account_No }),
+      ...(Bank_Name && { Bank_Name }),
+      ...(IFSC_Code && { IFSC_Code }),
     },
     { new: true }
   );
@@ -427,7 +446,7 @@ exports.updateProfile = TryCatch(async (req, res) => {
 
   updatedUser.password = undefined;
 
-  res.status(200).json({  
+  res.status(200).json({
     status: 200,
     success: true,
     message: "Profile updated successfully",
