@@ -22,13 +22,17 @@ exports.createOrder = TryCatch(async (req, res) => {
   const period = req.body.period || 'month';
 
   // Calculate end date based on period
-  const startDate = new Date();
-  const endDate = new Date(startDate);
-  if (period === 'year') {
-    endDate.setFullYear(endDate.getFullYear() + 1);
-  } else {
-    endDate.setMonth(endDate.getMonth() + 1);
-  }
+const startDate = new Date();
+const endDate = new Date(startDate);
+
+if (period === 'year') {
+  endDate.setFullYear(endDate.getFullYear() + 1);
+} else {
+  endDate.setMonth(endDate.getMonth() + 1);
+}
+
+// Set time to midnight
+endDate.setHours(0, 0, 0, 0);
 
   // Prefer amount provided by client (in paise) for dynamic pricing
   let amountInPaise = null;

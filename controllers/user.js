@@ -8,62 +8,91 @@ const { sendEmail } = require("../utils/sendEmail");
 const { SubscriptionOrder } = require("../models/subscriptionOrder");
 const { default: mongoose } = require("mongoose");
 
+
 exports.create = TryCatch(async (req, res) => {
-  const userDetails = req.body;
-  const totalUsers = await User.find().countDocuments();
-  const nonSuperUserCount = await User.countDocuments({ isSuper: false });
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  let isSuper = false;
-  let employeeId = null;
-  // If it is the first user then make it the super admin
-  if (totalUsers === 0) {
-    isSuper = true;
-  } else {
-    const nonSuperUserCount = await User.countDocuments({ isSuper: false });
-    const prefix =
-      userDetails.first_name?.substring(0, 3).toUpperCase() || "EMP";
-    const idNumber = String(nonSuperUserCount + 1).padStart(4, "0");
-    employeeId = `${prefix}${idNumber}`;
-  }
-  // If the non-super user count exceeds 100, throw an error
-  if (nonSuperUserCount >= 100) {
-    throw new ErrorHandler("Maximum limit of 100 employees reached", 403);
-  }
+  try {
+    const userDetails = req.body;
 
-  const user = await User.create({ ...userDetails, isSuper, employeeId });
-  user.password = undefined;
+    const totalUsers = await User.find().countDocuments().session(session);
+    const nonSuperUserCount = await User.countDocuments({ isSuper: false }).session(session);
 
-  let otp = generateOTP(4);
-  await OTP.create({ email: user?.email, otp });
+    let isSuper = false;
+    let employeeId = null;
 
-  sendEmail(
-    "Account Verification",
-    `
-      <strong>Dear ${user.first_name}</strong>,
-  
+    // If it is the first user then make it the super admin
+    if (totalUsers === 0) {
+      isSuper = true;
+    } else {
+      const prefix = userDetails.first_name?.substring(0, 3).toUpperCase() || "EMP";
+      const idNumber = String(nonSuperUserCount + 1).padStart(4, "0");
+      employeeId = `${prefix}${idNumber}`;
+    }
+
+    // If the non-super user count exceeds 100, throw an error
+    if (nonSuperUserCount >= 100) {
+      throw new ErrorHandler("Maximum limit of 100 employees reached", 403);
+    }
+
+    // Create the user within the session
+    const user = await User.create([{ ...userDetails, isSuper, employeeId }], { session });
+    const newUser = user[0]; // Because create returns an array when using session
+    newUser.password = undefined;
+
+    // Generate OTP
+    let otp = generateOTP(4);
+    await OTP.create([{ email: newUser.email, otp }], { session });
+
+    // Send email (not part of transaction, won't rollback if email fails)
+    sendEmail(
+      "Account Verification",
+      `
+      <strong>Dear ${newUser.first_name}</strong>,
+
       <p>Thank you for registering with us! To complete your registration and verify your account, please use the following One-Time Password (OTP): <strong>${otp}</strong></p>
 
       <p>This OTP is valid for 5 minutes. Do not share your OTP with anyone.</p>
       `,
-    user?.email
-  );
+      newUser.email
+    );
 
-  res.status(200).json({
-    status: 200,
-    success: true,
-    message:
-      "User has been created successfully. OTP has been successfully sent to your email id",
-    user,
-  });
+    // Create subscription order
+    const today = new Date();
 
-  const today = new Date(); // Get today's date
-  const next7Days = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+// Calculate the date 7 days from now
+const next7Days = new Date(today);
+next7Days.setDate(today.getDate() + 7);
 
-  await SubscriptionOrder.create({
-    userId: user._id,
-    endDate: next7Days
-  })
+// Set time to midnight (00:00:00)
+next7Days.setHours(0, 0, 0, 0);
+
+// Create subscription order within the session
+await SubscriptionOrder.create(
+  [{ userId: newUser._id, endDate: next7Days }],
+  { session }
+);
+
+    // Commit the transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    res.status(200).json({
+      status: 200,
+      success: true,
+      message:
+        "User has been created successfully. OTP has been successfully sent to your email id",
+      user: newUser,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error; // Let your TryCatch middleware handle it
+  }
 });
+
+
 exports.verifyUser = TryCatch(async (req, res) => {
   const { email } = req.body;
   await OTP.findOneAndDelete({ email });
