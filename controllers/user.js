@@ -239,7 +239,7 @@ exports.loginWithPassword = TryCatch(async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email })
-    .select("first_name last_name email phone role isSuper password")
+    .select("first_name last_name email phone role isSuper password isAdministration")
     .populate("role");
   if (!user) {
     throw new Error("User doesn't exist", 400);
@@ -264,6 +264,7 @@ exports.loginWithPassword = TryCatch(async (req, res) => {
   );
 
   user.password = undefined;
+
 
   res.status(200).json({
     status: 200,
