@@ -9,4 +9,6 @@ router.post('/verify', subscriptionCtrl.verifyPayment);
 // Renew subscription (requires auth; checks expiry first)
 router.post('/renew', isAuthenticated, subscriptionCtrl.renewSubscription);
 
+
+
 module.exports = router;

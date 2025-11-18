@@ -30,15 +30,18 @@ const DeviceDataRoutes = require('./routes/deviceData.routes');
 
 const app = express();
 const server = http.createServer(app);
+
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:5173",
+  "https://inventory.deepmart.shop",
+  "https://sopasb2b.deepmart.shop",
+  "https://testingrtpas.deepnapsoftech.com"
+];
 const io = socketIo(server, {
   cors: {
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://localhost:5173",
-      "https://inventory.deepmart.shop",
-      "https://sopasb2b.deepmart.shop",
-    ],
+    origin:allowedOrigins, 
     methods: ["GET", "POST"],
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true,
@@ -49,13 +52,7 @@ global.io = io;
 // Load environment variables
 require('dotenv').config();
 
-const allowedOrigins = [
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:5173",
-  "https://inventory.deepmart.shop",
-  "https://sopasb2b.deepmart.shop",
-];
+
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -175,6 +172,8 @@ io.on('connection', (socket) => {
     console.log('🔴 Client disconnected:', socket.id);
   });
 });
+
+app.use("/health",(req,res) => res.send("Server is running"))
 
 app.use("/api/auth", authRoutes);
 app.use("/api/product", productRoutes);

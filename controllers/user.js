@@ -5,8 +5,8 @@ const User = require("../models/user");
 const OTP = require("../models/otp");
 const { generateOTP } = require("../utils/generateOTP");
 const { sendEmail } = require("../utils/sendEmail");
-const { SubscriptionOrder } = require("../models/subscriptionOrder");
 const { default: mongoose } = require("mongoose");
+const { SubscriptionPayment } = require("../models/subscriptionPayment");
 
 
 exports.create = TryCatch(async (req, res) => {
@@ -70,7 +70,7 @@ exports.create = TryCatch(async (req, res) => {
     next7Days.setHours(0, 0, 0, 0);
 
     // Create subscription order within the session
-    await SubscriptionOrder.create(
+    await SubscriptionPayment.create(
       [{ userId: newUser._id, endDate: next7Days, razorpayOrderId: newUser._id, }],
       { session }
     );
@@ -182,7 +182,7 @@ exports.employeeDetails = TryCatch(async (req, res) => {
     },
     {
       $lookup: {
-        from: "subscriptionorders",
+        from: "subscriptionpayments",
         localField: "_id",
         foreignField: "userId",
         as: "subscription"

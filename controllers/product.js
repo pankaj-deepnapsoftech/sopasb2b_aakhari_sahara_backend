@@ -574,6 +574,8 @@ exports.workInProgressProducts = TryCatch(async (req, res) => {
     );
   });
 
+  console.log("this is products",products)
+
   res.status(200).json({
     status: 200,
     success: true,
