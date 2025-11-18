@@ -28,8 +28,9 @@ exports.create = TryCatch(async (req, res) => {
     }
 
 
+    const dataSet = employeeId ? { ...userDetails, employeeId} : userDetails
     // Create the user within the session
-    const user = await User.create([{ ...userDetails, employeeId }], { session });
+    const user = await User.create([dataSet], { session });
     const newUser = user[0]; // Because create returns an array when using session
     newUser.password = undefined;
 
