@@ -71,7 +71,7 @@ exports.create = TryCatch(async (req, res) => {
 
     // Create subscription order within the session
     await SubscriptionPayment.create(
-      [{ userId: newUser._id, endDate: next7Days, razorpayOrderId: newUser._id, }],
+      [{ userId: newUser._id, endDate: next7Days, razorpayPaymentId: newUser._id, }],
       { session }
     );
 
