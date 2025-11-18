@@ -8,7 +8,8 @@ router.post('/create', isAuthenticated, subscriptionCtrl.createOrder);
 router.post('/verify', subscriptionCtrl.verifyPayment);
 // Renew subscription (requires auth; checks expiry first)
 router.post('/renew', isAuthenticated, subscriptionCtrl.renewSubscription);
-router.get("/all-users-subscription",subscriptionCtrl.AllUsersSubscription)
+router.get("/all-users-subscription",isAuthenticated,subscriptionCtrl.AllUsersSubscription)
+router.get("/admin-cards-data",isAuthenticated,subscriptionCtrl.allAdminCardsData)
 
 
 

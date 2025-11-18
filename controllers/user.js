@@ -17,28 +17,19 @@ exports.create = TryCatch(async (req, res) => {
     const userDetails = req.body;
 
     const totalUsers = await User.find().countDocuments().session(session);
-    const nonSuperUserCount = await User.countDocuments({ isSuper: false }).session(session);
 
-    let isSuper = false;
     let employeeId = null;
 
     // If it is the first user then make it the super admin
-    if (totalUsers === 0) {
-      isSuper = true;
-    } else {
-      const prefix = userDetails.first_name?.substring(0, 3).toUpperCase() || "EMP";
+    if (!userDetails?.isSuper) {
+      let prefix = userDetails.first_name?.substring(0, 3).toUpperCase() || "EMP";
       const idNumber = String(totalUsers + 1).padStart(4, "0");
       employeeId = `${prefix}${idNumber}`;
     }
 
 
-    // If the non-super user count exceeds 100, throw an error
-    if (nonSuperUserCount >= 100) {
-      throw new ErrorHandler("Maximum limit of 100 employees reached", 403);
-    }
-
     // Create the user within the session
-    const user = await User.create([{ ...userDetails, isSuper, employeeId }], { session });
+    const user = await User.create([{ ...userDetails, employeeId }], { session });
     const newUser = user[0]; // Because create returns an array when using session
     newUser.password = undefined;
 
@@ -87,6 +78,7 @@ exports.create = TryCatch(async (req, res) => {
       user: newUser,
     });
   } catch (error) {
+    console.log(error)
     await session.abortTransaction();
     session.endSession();
     throw error; // Let your TryCatch middleware handle it

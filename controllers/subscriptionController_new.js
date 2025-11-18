@@ -22,17 +22,17 @@ exports.createOrder = TryCatch(async (req, res) => {
   const period = req.body.period || 'month';
 
   // Calculate end date based on period
-const startDate = new Date();
-const endDate = new Date(startDate);
+  const startDate = new Date();
+  const endDate = new Date(startDate);
 
-if (period === 'year') {
-  endDate.setFullYear(endDate.getFullYear() + 1);
-} else {
-  endDate.setMonth(endDate.getMonth() + 1);
-}
+  if (period === 'year') {
+    endDate.setFullYear(endDate.getFullYear() + 1);
+  } else {
+    endDate.setMonth(endDate.getMonth() + 1);
+  }
 
-// Set time to midnight
-endDate.setHours(0, 0, 0, 0);
+  // Set time to midnight
+  endDate.setHours(0, 0, 0, 0);
 
   // Prefer amount provided by client (in paise) for dynamic pricing
   let amountInPaise = null;
@@ -216,13 +216,13 @@ exports.renewSubscription = TryCatch(async (req, res) => {
 });
 
 
-exports.AllUsersSubscription = TryCatch(async(req,res)=>{
+exports.AllUsersSubscription = TryCatch(async (req, res) => {
 
   const data = await User.aggregate([
     {
-      $match:{isSuper:true}
+      $match: { isSuper: true }
     },
-   {
+    {
       $lookup: {
         from: "subscriptionpayments",
         localField: "_id",
@@ -246,17 +246,17 @@ exports.AllUsersSubscription = TryCatch(async(req,res)=>{
       }
     },
     {
-      $project:{
-        subscription:1,
-        subscription_count:1,
-        first_name:1,
-        last_name:1,
-        email:1,
-        phone:1,
-        isVerified:1,
-        createdAt:1,
-        address:1,
-        cpny_name:1,
+      $project: {
+        subscription: 1,
+        subscription_count: 1,
+        first_name: 1,
+        last_name: 1,
+        email: 1,
+        phone: 1,
+        isVerified: 1,
+        createdAt: 1,
+        address: 1,
+        cpny_name: 1,
       }
     }
   ]);
@@ -265,4 +265,71 @@ exports.AllUsersSubscription = TryCatch(async(req,res)=>{
     data
   })
 
-})
+});
+
+exports.allAdminCardsData = TryCatch(async (req, res) => {
+
+  const [totalAdmins, freeTrialAgg, activePaid, expiredPaidAgg] = await Promise.all([
+
+    // Total admins
+    User.countDocuments({ isSuper: true }),
+
+    // Free Trial (LAST per user, expired)
+    SubscriptionPayment.aggregate([
+      {
+        $match: {
+          plan: "Free Trial",
+          endDate: { $lte: new Date() }
+        }
+      },
+      { $sort: { endDate: -1 } },
+      {
+        $group: {
+          _id: "$userId",
+          lastSubscription: { $first: "$$ROOT" }
+        }
+      },
+      { $count: "total" }
+    ]),
+
+    // Paid subscriptions active
+    SubscriptionPayment.countDocuments({
+      plan: { $ne: "Free Trial" },
+      endDate: { $gte: new Date() }
+    }),
+
+    // Paid subscriptions expired (LAST per user)
+    SubscriptionPayment.aggregate([
+      {
+        $match: {
+          plan: { $ne: "Free Trial" },
+          endDate: { $lte: new Date() }
+        }
+      },
+      { $sort: { endDate: -1 } },
+      {
+        $group: {
+          _id: "$userId",
+          lastSubscription: { $first: "$$ROOT" }
+        }
+      },
+      { $count: "total" }
+    ])
+  ]);
+
+  const freeTrialCount = freeTrialAgg[0]?.total || 0;
+  const expiredPaidCount = expiredPaidAgg[0]?.total || 0;
+
+  res.status(StatusCodes.OK).json({
+    data: {
+      totalAdmins,
+      freeTrial: freeTrialCount,
+      activePaid,
+      expiredPaid: expiredPaidCount,
+      RTPAS:0,
+      KONTROLIX:0
+    }
+  });
+});
+
+
