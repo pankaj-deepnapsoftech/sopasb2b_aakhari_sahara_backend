@@ -29,7 +29,7 @@ const userSchema = new Schema(
     },
     isSuper: {
       type: Boolean,
-      default: true,
+      default: false,
     },
     employeeId: {
       type: String,
