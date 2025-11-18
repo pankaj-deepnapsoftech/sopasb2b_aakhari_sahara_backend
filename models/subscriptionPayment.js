@@ -13,6 +13,7 @@ const SubscriptionPaymentSchema = new Schema({
   startDate: { type: Date, default: Date.now },
   endDate: { type: Date },
   period: { type: String, enum: ['month', 'year'], default: 'month' },
+  allowedUsers:{type:Number,default:0}
 }, { timestamps: true });
 
 const SubscriptionPayment = mongoose.model('SubscriptionPayment', SubscriptionPaymentSchema);

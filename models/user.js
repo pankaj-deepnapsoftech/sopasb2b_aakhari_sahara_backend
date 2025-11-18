@@ -74,6 +74,10 @@ const userSchema = new Schema(
       type: String,
       default: "",
     },
+    isAdministration:{
+      type:Boolean,
+      default:false
+    }
 
   },
   {

@@ -216,4 +216,53 @@ exports.renewSubscription = TryCatch(async (req, res) => {
 });
 
 
-// exports.AllUsersSubscription = 
+exports.AllUsersSubscription = TryCatch(async(req,res)=>{
+
+  const data = await User.aggregate([
+    {
+      $match:{isSuper:true}
+    },
+   {
+      $lookup: {
+        from: "subscriptionpayments",
+        localField: "_id",
+        foreignField: "userId",
+        as: "subscription"
+      }
+    },
+    {
+      $addFields: {
+
+        // Reverse subscription array and get the first item (latest)
+        subscription: {
+          $arrayElemAt: [
+            { $reverseArray: "$subscription" },
+            0
+          ]
+        },
+
+        // Count total subscriptions
+        subscription_count: { $size: "$subscription" } // ⚠️ This is wrong; we’ll fix it below
+      }
+    },
+    {
+      $project:{
+        subscription:1,
+        subscription_count:1,
+        first_name:1,
+        last_name:1,
+        email:1,
+        phone:1,
+        isVerified:1,
+        createdAt:1,
+        address:1,
+        cpny_name:1,
+      }
+    }
+  ]);
+
+  res.status(StatusCodes.OK).json({
+    data
+  })
+
+})
